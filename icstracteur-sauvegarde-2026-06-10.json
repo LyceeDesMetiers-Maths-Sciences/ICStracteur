@@ -1,0 +1,18 @@
+{
+  "app": "ICStracteur",
+  "backupVersion": 1,
+  "exportedAt": "2026-06-10T09:39:24.513Z",
+  "annotations": {},
+  "manual": [],
+  "plannedSequences": [],
+  "sequenceMeta": {},
+  "settings": {
+    "classFilter": "1ASSP1",
+    "groupFilter": "",
+    "viewMode": "summary",
+    "gridColumns": 4,
+    "summaryOrientation": "landscape",
+    "summaryMode": "split",
+    "summaryZoom": 14
+  }
+}

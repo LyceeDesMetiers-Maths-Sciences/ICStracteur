@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ICStracteur 26-27</title>
+    <link rel="stylesheet" href="style.css" />
+    <script defer src="app.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">ASSP 26-27</p>
+        <h1>ICStracteur</h1>
+      </div>
+      <div class="toolbar">
+        <button id="viewTable" type="button">Liste</button>
+        <button id="viewGrid" type="button">Grille</button>
+        <button id="viewSummary" type="button">Planification</button>
+        <label class="file-button">
+          Importer un ICS
+          <input id="icsFile" type="file" accept=".ics,text/calendar" hidden />
+        </label>
+        <button id="loadDemo" type="button">Charger l'exemple</button>
+        <button id="addManual" type="button">Ajouter un événement</button>
+        <button id="exportCsv" type="button">Exporter CSV</button>
+        <button id="exportPdf" type="button">Exporter PDF</button>
+        <button id="exportBackup" type="button">Sauvegarder (JSON)</button>
+        <label class="file-button">
+          Restaurer (JSON)
+          <input id="importBackup" type="file" accept=".json,application/json" hidden />
+        </label>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel controls">
+        <h2 id="controlsTitle" class="controls-title">Liste</h2>
+        <div class="control-grid">
+          <label data-control-scope="grid">
+            Colonnes grille
+            <input id="gridColumns" type="number" min="2" max="12" value="4" />
+          </label>
+          <label data-control-scope="summary">
+            Orientation planification
+            <select id="summaryOrientation">
+              <option value="landscape">Paysage</option>
+              <option value="portrait">Portrait</option>
+            </select>
+          </label>
+          <label data-control-scope="summary">
+            Mode planification
+            <select id="summaryMode">
+              <option value="mixed">Mixte chronologique</option>
+              <option value="split">Éclaté par matière</option>
+            </select>
+          </label>
+          <label data-control-scope="table grid summary">
+            Classe
+            <select id="classFilter"></select>
+          </label>
+          <label data-control-scope="table grid summary">
+            Classe / groupe
+            <select id="groupFilter"></select>
+          </label>
+          <label data-control-scope="table grid">
+            Recherche
+            <input id="searchInput" type="search" placeholder="séquence, salle, prof..." />
+          </label>
+          <label data-control-scope="table grid">
+            Type
+            <select id="typeFilter">
+              <option value="">Tous</option>
+              <option value="cours">Cours</option>
+              <option value="cointervention">Co-intervention</option>
+              <option value="evaluation">Évaluation</option>
+              <option value="pfmp">PFMP</option>
+              <option value="autre">Autre</option>
+            </select>
+          </label>
+          <label data-control-scope="table grid">
+            Statut
+            <select id="statusFilter">
+              <option value="">Tous</option>
+              <option value="todo">A faire</option>
+              <option value="done">Fait</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="import-box" data-control-scope="table grid summary">
+          <label>
+            Charger une URL ICS
+            <input id="icsUrl" type="url" placeholder="https://..." />
+          </label>
+          <button id="loadUrl" type="button">Charger l'URL</button>
+          <label>
+            Coller le contenu ICS
+            <textarea id="icsText" rows="7" placeholder="BEGIN:VCALENDAR..."></textarea>
+          </label>
+          <button id="loadText" type="button">Importer le texte</button>
+        </div>
+
+        <div class="import-box" data-control-scope="summary">
+          <label>
+            Séquences programmées
+            <textarea id="plannedText" rows="7" placeholder="Acide-base | 2026-09-01 | 2026-09-22&#10;Oxydoréduction | 2026-09-29 | 2026-10-13"></textarea>
+          </label>
+          <div class="toolbar compact">
+            <button id="loadPlanned" type="button">Charger le plan</button>
+            <button id="applyPlanned" type="button">Rapprocher</button>
+          </div>
+          <div id="plannedList" class="planned-list"></div>
+        </div>
+
+        <div class="import-box" data-control-scope="summary">
+          <h3 class="control-subtitle">Gestion des séquences</h3>
+          <label>
+            Séquence
+            <select id="sequenceManagerSelect"></select>
+          </label>
+          <label>
+            Nom
+            <input id="sequenceManagerTitle" type="text" placeholder="Nouvelle séquence..." />
+          </label>
+          <label>
+            Matière
+            <select id="sequenceManagerDomain">
+              <option value="maths">Maths</option>
+              <option value="sciences">Sciences</option>
+              <option value="cointervention">Co-intervention</option>
+              <option value="autre">Non classé</option>
+            </select>
+          </label>
+          <label>
+            Couleur
+            <input id="sequenceManagerColor" type="color" value="#2563eb" />
+          </label>
+          <div class="toolbar compact">
+            <button id="sequenceCreate" type="button">Créer + affecter</button>
+            <button id="sequenceUpdate" type="button">Enregistrer + affecter</button>
+            <button id="sequenceDelete" type="button" class="danger">Supprimer</button>
+            <button id="sequenceSelectSquares" type="button">Sélectionner</button>
+          </div>
+        </div>
+
+        <div class="import-box" data-control-scope="summary">
+          <h3 class="control-subtitle">Affectation rapide</h3>
+          <label>
+            Affecter la sélection
+            <select id="sequenceAssignSelect"></select>
+          </label>
+          <label>
+            Nouvelle séquence
+            <input id="sequenceAssignName" type="text" placeholder="Nom de séquence..." />
+          </label>
+          <label>
+            Matière des cours sélectionnés
+            <select id="domainAssignSelect">
+              <option value="">Choisir une attribution</option>
+              <option value="auto">Automatique (ICS + salle)</option>
+              <option value="maths">Maths</option>
+              <option value="sciences">Sciences</option>
+              <option value="cointervention">Co-intervention</option>
+              <option value="autre">Non classé</option>
+            </select>
+          </label>
+          <div class="toolbar compact">
+            <button id="assignSelectedSequence" type="button">Affecter</button>
+            <button id="clearSelectedSequence" type="button">Retirer</button>
+            <button id="assignSelectedDomain" type="button">Réattribuer</button>
+          </div>
+          <div id="selectedCount" class="planned-list">Aucun carré sélectionné.</div>
+        </div>
+
+        <div class="stats" id="stats"></div>
+      </section>
+
+      <section class="panel table-panel">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Date</th>
+                <th>Heure</th>
+                <th>Salle</th>
+                <th>Groupe</th>
+                <th>Sequence</th>
+                <th>Séq. prévue</th>
+                <th>Type</th>
+                <th>Eval</th>
+                <th>Fait</th>
+                <th>Docs</th>
+                <th>Absents</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel grid-panel hidden">
+        <div class="grid-head">
+          <h2>Grille des séances</h2>
+          <div class="grid-legend">
+            <span><span class="legend-swatch legend-done"></span> fait</span>
+            <span><span class="legend-swatch legend-todo"></span> à venir</span>
+            <span><span class="legend-swatch legend-eval"></span> évaluation</span>
+          </div>
+        </div>
+        <div id="gridWrap" class="sequence-grid"></div>
+      </section>
+
+      <section class="panel summary-panel hidden">
+        <div class="summary-head">
+          <h2>Planification annuelle</h2>
+          <div class="summary-actions">
+            <div class="summary-selection">
+              <strong id="summarySelectionCount">0 sélectionné</strong>
+              <button id="selectAllSummary" type="button">Tout sélectionner</button>
+              <button id="clearSummarySelection" type="button">Désélectionner</button>
+            </div>
+            <label>
+              Mode
+              <select id="summaryModePanel">
+                <option value="mixed">Mixte</option>
+                <option value="split">Par matière</option>
+              </select>
+            </label>
+            <label>
+              Zoom
+              <input id="summaryZoom" type="range" min="8" max="24" value="14" />
+              <output id="summaryZoomLabel">14 px</output>
+            </label>
+          </div>
+          <div id="summaryStats" class="summary-stats"></div>
+        </div>
+        <div id="summaryWrap" class="summary-wrap"></div>
+      </section>
+
+      <aside class="panel details" id="details">
+        <h2>Détails</h2>
+        <form id="detailForm">
+          <input type="hidden" id="detailId" />
+          <label>Titre<input id="detailTitle" type="text" /></label>
+          <label>Date<input id="detailDate" type="date" /></label>
+          <label>Heure début<input id="detailStart" type="time" /></label>
+          <label>Heure fin<input id="detailEnd" type="time" /></label>
+          <label>Salle<input id="detailRoom" type="text" /></label>
+          <label>Groupe<input id="detailGroup" type="text" /></label>
+          <label>Sequence<textarea id="detailSequence" rows="6"></textarea></label>
+          <label>Séquence prévue<input id="detailPlannedSequence" type="text" /></label>
+          <label>Type
+            <select id="detailType">
+              <option value="cours">Cours</option>
+              <option value="cointervention">Co-intervention</option>
+              <option value="evaluation">Évaluation</option>
+              <option value="pfmp">PFMP</option>
+              <option value="autre">Autre</option>
+            </select>
+          </label>
+          <label>Matière
+            <select id="detailDomain">
+              <option value="auto">Automatique (ICS + salle)</option>
+              <option value="maths">Maths</option>
+              <option value="sciences">Sciences</option>
+              <option value="cointervention">Co-intervention</option>
+              <option value="autre">Non classé</option>
+            </select>
+          </label>
+          <div id="detailDomainOrigin" class="field-hint"></div>
+          <label class="checkline"><input id="detailEvaluation" type="checkbox" /> Jour d'évaluation</label>
+          <label class="checkline"><input id="detailDone" type="checkbox" /> Fait</label>
+          <label class="checkline"><input id="detailDocs" type="checkbox" /> Documents distribués</label>
+          <label>Absents / remarques<textarea id="detailAbsents" rows="3"></textarea></label>
+          <label>Notes<textarea id="detailNotes" rows="4"></textarea></label>
+          <div class="toolbar compact">
+            <button type="submit">Enregistrer</button>
+            <button type="button" id="deleteEvent" class="danger">Supprimer</button>
+          </div>
+        </form>
+      </aside>
+    </main>
+
+    <dialog id="manualDialog">
+      <form id="manualForm" method="dialog">
+        <h2>Ajouter un événement</h2>
+        <div class="control-grid dialog-grid">
+          <label>Date<input id="manualDate" type="date" required /></label>
+          <label>Début<input id="manualStart" type="time" required /></label>
+          <label>Fin<input id="manualEnd" type="time" required /></label>
+          <label>Salle<input id="manualRoom" type="text" /></label>
+          <label>Groupe<input id="manualGroup" type="text" /></label>
+          <label>Titre<input id="manualTitle" type="text" required /></label>
+          <label>Séquence prévue<input id="manualPlannedSequence" type="text" /></label>
+          <label>Type
+            <select id="manualType">
+              <option value="cours">Cours</option>
+              <option value="cointervention">Co-intervention</option>
+              <option value="evaluation">Évaluation</option>
+              <option value="pfmp">PFMP</option>
+              <option value="autre">Autre</option>
+            </select>
+          </label>
+          <label>Sequence<textarea id="manualSequence" rows="5"></textarea></label>
+          <label>Notes<textarea id="manualNotes" rows="4"></textarea></label>
+          <label class="checkline"><input id="manualEvaluation" type="checkbox" /> Jour d'évaluation</label>
+          <label class="checkline"><input id="manualDone" type="checkbox" /> Fait</label>
+          <label class="checkline"><input id="manualDocs" type="checkbox" /> Documents distribués</label>
+          <label>Absents<textarea id="manualAbsents" rows="3"></textarea></label>
+        </div>
+        <div class="toolbar compact">
+          <button type="submit">Créer</button>
+          <button type="button" id="closeManual">Annuler</button>
+        </div>
+      </form>
+    </dialog>
+
+    <template id="rowTemplate">
+      <tr>
+        <td class="idx"></td>
+        <td class="date"></td>
+        <td class="time"></td>
+        <td class="room"></td>
+        <td class="group"></td>
+        <td class="sequence"></td>
+        <td class="plannedSequence"></td>
+        <td class="type"></td>
+        <td class="evaluation"></td>
+        <td class="done"></td>
+        <td class="docs"></td>
+        <td class="absents"></td>
+        <td class="actions"></td>
+      </tr>
+    </template>
+  </body>
+</html>
