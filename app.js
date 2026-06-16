@@ -25,7 +25,6 @@ const state = {
   summarySelectionAnchorId: "",
 };
 
-const CANONICAL_CLASSES = ["_1CAPAS", "_2CAPAS", "1ASSP1", "1ASSP2", "1AEPA", "TAEPA"];
 const SUMMARY_DOMAINS = ["maths", "sciences", "cointervention", "autre"];
 const SEQUENCE_COLORS = [
   "#2563eb",
@@ -381,34 +380,37 @@ function extractGroup(summary, description, className = "") {
 }
 
 function extractClassName(summary, description) {
-  const text = `${summary}\n${description}`;
-  return canonicalClassFromText(text);
+  return extractClassFromText(`${summary}\n${description}`);
 }
 
-function canonicalClassFromText(value) {
-  const normalized = normalizeText(value).toUpperCase().replace(/\s+/g, "");
-  const compact = normalized.replace(/[^A-Z0-9]/g, "");
-  for (const className of CANONICAL_CLASSES) {
-    if (normalized.includes(className)) return className;
-  }
-  if (compact.includes("1CAPAS") || compact.includes("1CAPA")) return "_1CAPAS";
-  if (compact.includes("2CAPAS") || compact.includes("2CAPA")) return "_2CAPAS";
+function extractClassFromText(text) {
+  const norm = normalizeText(text);
+  const classMatch = norm.match(/(?:^|\n)Classes?\s*:\s*([^\n<]+)/i);
+  if (classMatch) return cleanClassName(classMatch[1]);
+  
+  const partieMatch = norm.match(/(?:^|\n)Partie de classe\s*:\s*(?:<|&lt;)([^>]+)(?:>|&gt;)/i);
+  if (partieMatch) return cleanClassName(partieMatch[1]);
+
+  const groupeMatch = norm.match(/(?:^|\n)Groupes?\s*:\s*\[([^\]]+)\]/i);
+  if (groupeMatch) return cleanClassName(groupeMatch[1].split(' ')[0]);
+
   return "";
+}
+
+function cleanClassName(value) {
+  if (!value) return "";
+  let cleaned = String(value).trim();
+  cleaned = cleaned.replace(/\s+G[12AB]$/gi, "");
+  cleaned = cleaned.replace(/\s+/g, " ");
+  return cleaned.split(",")[0].trim().toUpperCase();
 }
 
 function normalizeGroupName(value, className = "") {
   const raw = normalizeText(value).replace(/\s+/g, " ").trim();
-  const canonical = canonicalClassFromText(raw) || className;
-  const compact = raw.toUpperCase().replace(/\s+/g, "");
-  const canonicalCompact = canonical.replace(/\s+/g, "");
-  const groupMatch = compact.match(/(?:GROUPE|GR|G)([12AB])$/);
-  if (canonical && groupMatch) return `${canonical} G${groupMatch[1]}`;
-  if (canonical && compact.includes(`${canonicalCompact}G1`)) return `${canonical} G1`;
-  if (canonical && compact.includes(`${canonicalCompact}G2`)) return `${canonical} G2`;
-  if (canonical && compact.includes(`${canonicalCompact}GA`)) return `${canonical} GA`;
-  if (canonical && compact.includes(`${canonicalCompact}GB`)) return `${canonical} GB`;
-  if (canonical && compact === canonicalCompact) return canonical;
-  return raw || canonical;
+  const upper = raw.toUpperCase();
+  const groupMatch = upper.match(/(?:GROUPE|GR|G)\s*([12AB])$/);
+  if (className && groupMatch) return `${className} G${groupMatch[1]}`;
+  return raw || className;
 }
 
 function extractSequence(summary, description) {
@@ -629,7 +631,7 @@ function mergedEvent(event) {
   const rawTitle = a.title || event.summary || "";
   const rawClass = a.className || event.className || "";
   const rawGroup = a.group || event.group || "";
-  const className = canonicalClassFromText(`${rawClass}\n${rawGroup}\n${rawTitle}\n${event.description || ""}`);
+  const className = cleanClassName(rawClass) || extractClassFromText(`${rawTitle}\n${event.description || ""}`);
   const group = normalizeGroupName(rawGroup || className, className);
   const type = a.type || event.type || "autre";
   const domain = Object.hasOwn(a, "domain")
@@ -671,7 +673,7 @@ function deduplicateEvents(events) {
       bySlot.set(`unique:${event.id}`, event);
       continue;
     }
-    const scope = event.group || event.className || canonicalClassFromText(`${event.summary}\n${event.description}`);
+    const scope = event.group || event.className || extractClassFromText(`${event.summary}\n${event.description}`);
     const key = `${scope}|${event.dtstart.getTime()}`;
     const current = bySlot.get(key);
     if (!current || eventCollisionPriority(event) > eventCollisionPriority(current)) {
@@ -724,14 +726,14 @@ function localDateParts(date) {
 
 function updateFilters() {
   const events = allEvents();
-  const classes = CANONICAL_CLASSES;
   const activeClasses = activeCanonicalClasses(events);
+  const classes = activeClasses;
   const currentClass = state.filters.className || els.classFilter.value || "";
   const currentGroup = state.filters.group || els.groupFilter.value || "";
   const classOptions = ["<option value=\"\">Toutes les classes</option>"]
     .concat(classes.map((className) => `<option value="${escapeHtml(className)}">${escapeHtml(className)}</option>`));
   els.classFilter.innerHTML = classOptions.join("");
-  if (currentClass && classes.includes(currentClass) && (!activeClasses.length || activeClasses.includes(currentClass))) {
+  if (currentClass && classes.includes(currentClass)) {
     els.classFilter.value = currentClass;
   } else {
     els.classFilter.value = "";
@@ -761,11 +763,9 @@ function updateFilters() {
 function activeCanonicalClasses(events) {
   const active = new Set();
   for (const event of events) {
-    for (const className of CANONICAL_CLASSES) {
-      if (eventBelongsToClass(event, className)) active.add(className);
-    }
+    if (event.className) active.add(event.className);
   }
-  return Array.from(active);
+  return Array.from(active).sort();
 }
 
 function reconcileFiltersAfterImport(preferredClass = "", keepCurrent = false) {
@@ -829,16 +829,7 @@ function eventBelongsToClass(event, className) {
   if (!className) return true;
   if (event.className === className) return true;
   if (event.group === className || event.group?.startsWith(`${className} `)) return true;
-  const detected = canonicalClassFromText([
-    event.className,
-    event.group,
-    event.title,
-    event.summary,
-    event.sequence,
-    event.plannedSequence,
-    event.description,
-  ].join("\n"));
-  return detected === className;
+  return false;
 }
 
 function render() {
@@ -881,8 +872,12 @@ function renderTable(events) {
     actions.innerHTML = `
       <div class="mini-actions">
         <button type="button" data-action="open">Ouvrir</button>
-        <button type="button" data-action="toggle-done">${event.done ? "Décocher" : "Cocher"}</button>
-        <button type="button" data-action="toggle-docs">${event.docs ? "Docs ok" : "Docs ?"}</button>
+        <button type="button" class="${event.done ? 'active-done' : ''}" data-action="toggle-done">
+          ${event.done ? "✓ Fait" : "À faire"}
+        </button>
+        <button type="button" class="${event.docs ? 'active-docs' : ''}" data-action="toggle-docs">
+          ${event.docs ? "✓ Imprimé" : "📄 Docs ?"}
+        </button>
       </div>
     `;
     actions.querySelector('[data-action="open"]').addEventListener("click", () => openDetails(event.id));
@@ -1472,7 +1467,8 @@ function cleanSequenceKey(value) {
   let text = normalizeText(value).replace(/\s+/g, " ").trim();
   if (!text) return "";
   text = text.replace(/^(contenu prévu|sequence|séquence|seance|séance)\s*:\s*/i, "");
-  for (const className of CANONICAL_CLASSES) {
+  const dynamicClasses = Array.from(new Set([...state.imported, ...state.manual].map(e => e.className).filter(Boolean)));
+  for (const className of dynamicClasses) {
     const escaped = className.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     text = text.replace(new RegExp(`\\b${escaped}\\s+G[12AB]\\b`, "gi"), "");
     text = text.replace(new RegExp(`\\b${escaped}\\b`, "gi"), "");
@@ -1584,7 +1580,8 @@ function sanitizeDisplayText(value) {
 
 function removeTaggedStudentNames(value) {
   let text = String(value || "");
-  for (const className of CANONICAL_CLASSES) {
+  const dynamicClasses = Array.from(new Set([...state.imported, ...state.manual].map(e => e.className).filter(Boolean)));
+  for (const className of dynamicClasses) {
     const classPattern = className.startsWith("_")
       ? `(?:_)?${className.slice(1).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`
       : className.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
