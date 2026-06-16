@@ -9,6 +9,39 @@
   --accent-2: #0f766e;
   --danger: #b91c1c;
   --shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --button-bg: #f8fafc;
+  --button-hover-border: #9ca3af;
+  --dialog-backdrop: rgba(15, 23, 42, 0.35);
+  --input-bg: #ffffff;
+  --chip-bg: #ffffff;
+  --chip-hover-bg: #eff6ff;
+  --item-bg: #fafcff;
+  --legend-done: #1d4ed8;
+  --legend-todo: #ffffff;
+  --legend-todo-border: #94a3b8;
+}
+
+body.dark {
+  color-scheme: dark;
+  --bg: #0f172a;
+  --panel: #1e293b;
+  --line: #334155;
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+  --accent: #3b82f6;
+  --accent-2: #14b8a6;
+  --danger: #f87171;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  --button-bg: #1e293b;
+  --button-hover-border: #475569;
+  --dialog-backdrop: rgba(0, 0, 0, 0.65);
+  --input-bg: #0f172a;
+  --chip-bg: #1e293b;
+  --chip-hover-bg: #1e3a8a;
+  --item-bg: #0f172a;
+  --legend-done: #3b82f6;
+  --legend-todo: #1e293b;
+  --legend-todo-border: #475569;
 }
 
 * {
@@ -68,7 +101,7 @@ h1, h2 {
 .toolbar button,
 .file-button {
   border: 1px solid var(--line);
-  background: #f8fafc;
+  background: var(--button-bg);
   color: var(--text);
   border-radius: 8px;
   padding: 0.65rem 0.85rem;
@@ -77,7 +110,7 @@ h1, h2 {
 
 .toolbar button:hover,
 .file-button:hover {
-  border-color: #9ca3af;
+  border-color: var(--button-hover-border);
 }
 
 .toolbar .danger {
@@ -168,7 +201,7 @@ input, select, textarea {
   padding: 0.6rem 0.7rem;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fff;
+  background: var(--input-bg);
   color: var(--text);
 }
 
@@ -215,7 +248,7 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 0.45rem 0.55rem;
-  background: #fafcff;
+  background: var(--item-bg);
 }
 
 .table-panel {
@@ -260,8 +293,8 @@ textarea {
   border: 1px solid transparent;
 }
 
-.legend-done { background: #1d4ed8; }
-.legend-todo { background: #ffffff; border-color: #94a3b8; }
+.legend-done { background: var(--legend-done); }
+.legend-todo { background: var(--legend-todo); border-color: var(--legend-todo-border); }
 .legend-eval { background: #f97316; }
 
 .sequence-grid {
@@ -274,9 +307,9 @@ textarea {
 .sequence-card {
   position: relative;
   min-height: 88px;
-  border: 2px solid #94a3b8;
+  border: 2px solid var(--legend-todo-border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--panel);
   padding: 0.5rem;
   cursor: pointer;
   display: flex;
@@ -286,12 +319,12 @@ textarea {
 }
 
 .sequence-card.done {
-  background: #dbeafe;
-  border-color: #1d4ed8;
+  background: var(--chip-hover-bg);
+  border-color: var(--accent);
 }
 
 .sequence-card.todo {
-  background: #fff;
+  background: var(--panel);
 }
 
 .sequence-card.type-cours { border-color: #1d4ed8; }
@@ -407,7 +440,7 @@ textarea {
 
 .summary-selection button {
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--button-bg);
   color: var(--text);
   border-radius: 8px;
   padding: 0.4rem 0.55rem;
@@ -427,7 +460,7 @@ textarea {
 }
 
 .summary-sheet {
-  background: #fff;
+  background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 0.85rem;
@@ -474,9 +507,9 @@ textarea {
   resize: vertical;
   margin: 0 0 0.8rem;
   padding: 0.35rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--line);
   border-radius: 8px;
-  background: #f8fafc;
+  background: var(--button-bg);
 }
 
 .sequence-chip {
@@ -485,9 +518,9 @@ textarea {
   align-items: center;
   gap: 0.3rem;
   padding: 0.2rem 0.4rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--line);
   border-radius: 999px;
-  background: #fff;
+  background: var(--chip-bg);
   color: var(--text);
   font-size: 0.75rem;
   line-height: 1.15;
@@ -707,7 +740,7 @@ textarea {
   height: 6px;
   border-radius: 999px;
   background: #dc2626;
-  border: 1px solid #fff;
+  border: 1px solid var(--panel);
 }
 
 .summary-square.marker-mini::before,
@@ -743,14 +776,14 @@ textarea {
 
 .summary-square.special-class-absent,
 .summary-square.special-admin-absence {
-  border-color: #111827;
-  background: #ffffff;
+  border-color: var(--text);
+  background: var(--panel);
   box-shadow: none;
 }
 
 .summary-square.special-class-absent.filled,
 .summary-square.special-admin-absence.filled {
-  background: #ffffff;
+  background: var(--panel);
 }
 
 .summary-square.special-class-absent::before,
@@ -762,7 +795,7 @@ textarea {
   left: 1px;
   right: 1px;
   height: 2px;
-  background: #111827;
+  background: var(--text);
 }
 
 .summary-square.special-class-absent::before {
@@ -790,7 +823,7 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 0.65rem;
-  background: #fbfdff;
+  background: var(--panel);
 }
 
 .summary-domain h4 {
@@ -821,7 +854,7 @@ textarea {
   padding: 1rem;
   border: 1px dashed var(--line);
   border-radius: 8px;
-  background: #fff;
+  background: var(--panel);
   color: var(--muted);
 }
 
@@ -846,12 +879,12 @@ th, td {
 thead th {
   position: sticky;
   top: 0;
-  background: #f8fafc;
+  background: var(--button-bg);
   z-index: 1;
 }
 
 tbody tr:hover {
-  background: #f8fafc;
+  background: var(--button-bg);
 }
 
 .sequence {
@@ -889,15 +922,15 @@ tbody tr:hover {
 }
 
 .evaluation-badge.ccf {
-  border-color: #111827;
-  color: #111827;
-  background: #f8fafc;
+  border-color: var(--text);
+  color: var(--text);
+  background: var(--button-bg);
 }
 
 .evaluation-badge.mini {
   border-color: #dc2626;
   color: #dc2626;
-  background: #fff;
+  background: var(--chip-bg);
 }
 
 .evaluation-badge.summative {
@@ -912,6 +945,19 @@ tr.evaluation-day {
 
 tr.evaluation-day:hover {
   background: #ffe4e6;
+}
+
+body.dark .evaluation-badge.summative {
+  background: #450a0a;
+  color: #f87171;
+}
+
+body.dark tr.evaluation-day {
+  background: #450a0a;
+}
+
+body.dark tr.evaluation-day:hover {
+  background: #7f1d1d;
 }
 
 .mini-actions {
@@ -931,10 +977,12 @@ dialog {
   border-radius: 10px;
   box-shadow: var(--shadow);
   padding: 1rem;
+  background: var(--panel);
+  color: var(--text);
 }
 
 dialog::backdrop {
-  background: rgba(15, 23, 42, 0.35);
+  background: var(--dialog-backdrop);
 }
 
 .field-hint {
@@ -970,8 +1018,12 @@ dialog::backdrop {
 
 @media print {
   @page {
-    size: A4 landscape;
     margin: 10mm;
+  }
+  
+  .summary-month {
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
 
   body {

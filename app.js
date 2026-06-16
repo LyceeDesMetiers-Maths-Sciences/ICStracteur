@@ -15,6 +15,7 @@ const state = {
   viewMode: localStorage.getItem("icstracteur.viewMode") || "summary",
   gridColumns: Number(localStorage.getItem("icstracteur.gridColumns") || 4),
   summaryOrientation: localStorage.getItem("icstracteur.summaryOrientation") || "landscape",
+  printFormat: localStorage.getItem("icstracteur.printFormat") || "A4",
   summaryMode: localStorage.getItem("icstracteur.summaryMode") || "mixed",
   summaryZoom: Number(localStorage.getItem("icstracteur.summaryZoom") || 14),
   selectedId: null,
@@ -69,7 +70,6 @@ const els = {
   sequenceDelete: document.getElementById("sequenceDelete"),
   sequenceSelectSquares: document.getElementById("sequenceSelectSquares"),
   sequenceAssignSelect: document.getElementById("sequenceAssignSelect"),
-  sequenceAssignName: document.getElementById("sequenceAssignName"),
   domainAssignSelect: document.getElementById("domainAssignSelect"),
   assignSelectedSequence: document.getElementById("assignSelectedSequence"),
   clearSelectedSequence: document.getElementById("clearSelectedSequence"),
@@ -78,6 +78,7 @@ const els = {
   controlsTitle: document.getElementById("controlsTitle"),
   gridColumns: document.getElementById("gridColumns"),
   summaryOrientation: document.getElementById("summaryOrientation"),
+  printFormat: document.getElementById("printFormat"),
   summaryMode: document.getElementById("summaryMode"),
   summaryModePanel: document.getElementById("summaryModePanel"),
   summaryZoom: document.getElementById("summaryZoom"),
@@ -105,6 +106,8 @@ const els = {
   manualDialog: document.getElementById("manualDialog"),
   manualForm: document.getElementById("manualForm"),
   closeManual: document.getElementById("closeManual"),
+  toggleTheme: document.getElementById("toggleTheme"),
+  folderImport: document.getElementById("folderImport"),
 };
 
 const detailFields = {
@@ -489,6 +492,7 @@ function findPlannedSequenceForEvent(event) {
   const date = event.dtstart;
   if (!date) return "";
   const match = state.plannedSequences.find((seq) => {
+    if (!seq.start && !seq.end) return false;
     if (seq.start && date < seq.start) return false;
     if (seq.end && date > seq.end) return false;
     return true;
@@ -1194,9 +1198,13 @@ function updateSequenceManagerControls(events) {
   if (!els.sequenceManagerSelect) return;
   const catalog = sequenceCatalogItems(events).filter((item) => item.title !== "Sans séquence");
   const current = state.selectedSequenceTitle || els.sequenceManagerSelect.value || "";
-  els.sequenceManagerSelect.innerHTML = ['<option value="">Choisir une séquence</option>']
+  const optionsHtml = ['<option value="">Choisir une séquence</option>']
     .concat(catalog.map((item) => `<option value="${escapeHtml(item.title)}">${escapeHtml(shortSequenceTitle(item.title))} (${item.count})</option>`))
     .join("");
+
+  els.sequenceManagerSelect.innerHTML = optionsHtml;
+  if (els.sequenceAssignSelect) els.sequenceAssignSelect.innerHTML = optionsHtml;
+
   if (current && catalog.some((item) => item.title === current)) {
     els.sequenceManagerSelect.value = current;
     fillSequenceManager(current);
@@ -1207,17 +1215,29 @@ function updateSequenceManagerControls(events) {
 }
 
 function fillSequenceManager(title) {
+  const filesDiv = document.getElementById("sequenceManagerFiles");
   if (!title) {
     state.selectedSequenceTitle = "";
     if (els.sequenceManagerTitle) els.sequenceManagerTitle.value = "";
     if (els.sequenceManagerDomain) els.sequenceManagerDomain.value = "maths";
     if (els.sequenceManagerColor) els.sequenceManagerColor.value = SEQUENCE_COLORS[0];
+    if (filesDiv) filesDiv.innerHTML = "";
     return;
   }
   state.selectedSequenceTitle = title;
   if (els.sequenceManagerTitle) els.sequenceManagerTitle.value = title;
   if (els.sequenceManagerDomain) els.sequenceManagerDomain.value = sequenceDefinitionDomain(title);
   if (els.sequenceManagerColor) els.sequenceManagerColor.value = sequenceColor(title);
+  if (filesDiv) {
+    const meta = state.sequenceMeta[title];
+    const docs = meta?.documents || [];
+    if (docs.length > 0) {
+      filesDiv.innerHTML = `<strong>Documents (${docs.length}) :</strong>` +
+        docs.map((doc) => `<div class="planned-item" style="font-size: 0.8rem; padding: 0.3rem 0.5rem; word-break: break-all;">📄 ${escapeHtml(doc)}</div>`).join("");
+    } else {
+      filesDiv.innerHTML = "";
+    }
+  }
 }
 
 function upsertSequenceDefinition(title, domain, color) {
@@ -1254,7 +1274,6 @@ function createManagedSequence() {
   const savedTitle = upsertSequenceDefinition(title, domain, color);
   if (!savedTitle) return;
   state.selectedSequenceTitle = savedTitle;
-  assignManagedSequenceToSelection(savedTitle, domain);
   render();
 }
 
@@ -1267,20 +1286,7 @@ function updateManagedSequence() {
   if (oldTitle && oldTitle !== newTitle) renameSequenceEverywhere(oldTitle, newTitle);
   const savedTitle = upsertSequenceDefinition(newTitle, domain, color);
   state.selectedSequenceTitle = savedTitle;
-  assignManagedSequenceToSelection(savedTitle, domain);
   render();
-}
-
-function assignManagedSequenceToSelection(title, domain) {
-  if (!state.selectedSummaryIds.size) return;
-  for (const id of state.selectedSummaryIds) {
-    state.annotations[id] = {
-      ...(state.annotations[id] || {}),
-      plannedSequence: title,
-      domain,
-    };
-  }
-  saveAnnotations();
 }
 
 function renameSequenceEverywhere(oldTitle, newTitle) {
@@ -1330,7 +1336,7 @@ function deleteManagedSequence() {
 }
 
 function selectSquaresForManagedSequence() {
-  const title = state.selectedSequenceTitle || els.sequenceManagerSelect?.value || "";
+  const title = els.sequenceAssignSelect?.value || els.sequenceManagerSelect?.value || "";
   selectSquaresForSequence(title);
 }
 
@@ -1346,16 +1352,14 @@ function selectSquaresForSequence(title) {
 
 function assignSequenceToSelected() {
   const ids = Array.from(state.selectedSummaryIds);
-  const name = normalizeText(els.sequenceAssignName?.value || els.sequenceAssignSelect?.value || "");
+  const name = normalizeText(els.sequenceAssignSelect?.value || "");
   if (!ids.length || !name) return;
-  upsertSequenceDefinition(name, sequenceDefinitionDomain(name), state.sequenceMeta[name]?.color || sequenceColor(name));
   for (const id of ids) {
     state.annotations[id] = {
       ...(state.annotations[id] || {}),
       plannedSequence: name,
     };
   }
-  if (els.sequenceAssignName) els.sequenceAssignName.value = "";
   saveAnnotations();
   render();
 }
@@ -2066,6 +2070,93 @@ function downloadBlob(content, filename, mime) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+async function importFolderSequences(files) {
+  const seqsMap = new Map();
+  for (const file of files) {
+    const path = file.webkitRelativePath || "";
+    const parts = path.split("/");
+    if (parts.length < 3) continue;
+    const seqName = parts[1].trim();
+    const fileName = parts[parts.length - 1];
+    if (fileName.startsWith(".") || fileName === "Thumbs.db" || fileName.toLowerCase() === "desktop.ini") continue;
+    if (!seqsMap.has(seqName)) {
+      seqsMap.set(seqName, []);
+    }
+    seqsMap.get(seqName).push(fileName);
+  }
+  if (seqsMap.size === 0) {
+    alert("Aucun sous-dossier de séquence détecté. Organisez vos documents ainsi : DossierPrincipal / Sous-dossier Séquence / Fichiers");
+    return;
+  }
+  let addedCount = 0;
+  let updatedCount = 0;
+  for (const [title, docsList] of seqsMap.entries()) {
+    const cleanTitle = normalizeText(title);
+    const domain = detectDomainInText(title) || "autre";
+    const color = sequenceColor(cleanTitle);
+    const existing = state.plannedSequences.find((seq) => normalizeText(seq.title) === cleanTitle);
+    if (existing) {
+      existing.domain = domain || existing.domain;
+      updatedCount++;
+    } else {
+      state.plannedSequences.push({
+        id: `seq-${globalThis.crypto?.randomUUID?.() || Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        title: cleanTitle,
+        domain: domain,
+        start: null,
+        end: null,
+        slots: null,
+        note: "",
+      });
+      addedCount++;
+    }
+    state.sequenceMeta[cleanTitle] = {
+      ...(state.sequenceMeta[cleanTitle] || {}),
+      domain: domain,
+      color: state.sequenceMeta[cleanTitle]?.color || color,
+      documents: docsList,
+    };
+  }
+  savePlannedSequences();
+  saveSequenceMeta();
+  updateFilters();
+  render();
+  alert(`Importation réussie :\n- Séquences créées : ${addedCount}\n- Séquences mises à jour : ${updatedCount}`);
+}
+
+function initTheme() {
+  if (typeof window === "undefined" || typeof document === "undefined" || !document.body) return;
+  const savedTheme = localStorage.getItem("icstracteur.theme");
+  const systemPrefersDark = typeof window.matchMedia === "function" && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const isDark = savedTheme === "dark" || (!savedTheme && systemPrefersDark);
+  document.body.classList.toggle("dark", isDark);
+  updateThemeButton(isDark);
+}
+
+function toggleTheme() {
+  if (typeof document === "undefined" || !document.body) return;
+  const isDark = document.body.classList.toggle("dark");
+  localStorage.setItem("icstracteur.theme", isDark ? "dark" : "light");
+  updateThemeButton(isDark);
+}
+
+function updateThemeButton(isDark) {
+  if (typeof document === "undefined") return;
+  if (els.toggleTheme) {
+    els.toggleTheme.innerHTML = isDark ? "☀️ Mode clair" : "🌙 Mode sombre";
+  }
+}
+
+function updatePrintStyle() {
+  let styleEl = document.getElementById("dynamicPrintStyle");
+  if (!styleEl) {
+    styleEl = document.createElement("style");
+    styleEl.id = "dynamicPrintStyle";
+    document.head.appendChild(styleEl);
+  }
+  styleEl.textContent = `@media print { @page { size: ${state.printFormat} ${state.summaryOrientation}; margin: 10mm; } }`;
+}
+
 function bindEvents() {
   els.icsFile.addEventListener("change", async () => {
     const file = els.icsFile.files?.[0];
@@ -2076,6 +2167,14 @@ function bindEvents() {
   els.exportCsv.addEventListener("click", exportCsv);
   els.exportPdf.addEventListener("click", () => window.print());
   els.exportBackup?.addEventListener("click", exportBackup);
+  els.toggleTheme?.addEventListener("click", toggleTheme);
+  els.folderImport?.addEventListener("change", async () => {
+    const files = els.folderImport.files;
+    if (files && files.length > 0) {
+      await importFolderSequences(files);
+      els.folderImport.value = "";
+    }
+  });
   els.importBackup?.addEventListener("change", async () => {
     const file = els.importBackup.files?.[0];
     if (!file) return;
@@ -2092,6 +2191,7 @@ function bindEvents() {
   els.viewSummary.addEventListener("click", () => setViewMode("summary"));
   els.gridColumns.value = String(clampGridCols(state.gridColumns));
   els.summaryOrientation.value = state.summaryOrientation;
+  if (els.printFormat) els.printFormat.value = state.printFormat;
   syncSummaryControls();
   els.loadUrl.addEventListener("click", async () => {
     const url = els.icsUrl.value.trim();
@@ -2115,8 +2215,16 @@ function bindEvents() {
   els.summaryOrientation.addEventListener("change", () => {
     state.summaryOrientation = els.summaryOrientation.value === "portrait" ? "portrait" : "landscape";
     localStorage.setItem("icstracteur.summaryOrientation", state.summaryOrientation);
+    updatePrintStyle();
     render();
   });
+  if (els.printFormat) {
+    els.printFormat.addEventListener("change", () => {
+      state.printFormat = els.printFormat.value === "A3" ? "A3" : "A4";
+      localStorage.setItem("icstracteur.printFormat", state.printFormat);
+      updatePrintStyle();
+    });
+  }
   els.summaryMode.addEventListener("change", () => {
     setSummaryMode(els.summaryMode.value);
   });
@@ -2234,6 +2342,8 @@ function bindEvents() {
   els.closeManual.addEventListener("click", () => els.manualDialog.close());
 }
 
+initTheme();
+updatePrintStyle();
 bindEvents();
 syncViewMode();
 reconcileFiltersAfterImport();

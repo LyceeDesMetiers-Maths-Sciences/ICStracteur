@@ -30,6 +30,7 @@
           Restaurer (JSON)
           <input id="importBackup" type="file" accept=".json,application/json" hidden />
         </label>
+        <button id="toggleTheme" type="button" title="Basculer le thème">🌙 Mode sombre</button>
       </div>
     </header>
 
@@ -42,10 +43,17 @@
             <input id="gridColumns" type="number" min="2" max="12" value="4" />
           </label>
           <label data-control-scope="summary">
-            Orientation planification
+            Orientation (PDF)
             <select id="summaryOrientation">
               <option value="landscape">Paysage</option>
               <option value="portrait">Portrait</option>
+            </select>
+          </label>
+          <label data-control-scope="summary">
+            Format (PDF)
+            <select id="printFormat">
+              <option value="A4">A4</option>
+              <option value="A3">A3</option>
             </select>
           </label>
           <label data-control-scope="summary">
@@ -101,20 +109,27 @@
           <button id="loadText" type="button">Importer le texte</button>
         </div>
 
-        <div class="import-box" data-control-scope="summary">
-          <label>
+        <details class="import-box" data-control-scope="summary">
+          <summary class="control-subtitle" style="cursor: pointer; font-weight: 600;">Import texte (Séquences)</summary>
+          <label style="margin-top: 0.5rem;">
             Séquences programmées
             <textarea id="plannedText" rows="7" placeholder="Acide-base | 2026-09-01 | 2026-09-22&#10;Oxydoréduction | 2026-09-29 | 2026-10-13"></textarea>
           </label>
           <div class="toolbar compact">
             <button id="loadPlanned" type="button">Charger le plan</button>
-            <button id="applyPlanned" type="button">Rapprocher</button>
+            <button id="applyPlanned" type="button">Rapprocher par dates</button>
           </div>
           <div id="plannedList" class="planned-list"></div>
-        </div>
+        </details>
 
         <div class="import-box" data-control-scope="summary">
-          <h3 class="control-subtitle">Gestion des séquences</h3>
+          <h3 class="control-subtitle">📚 Catalogue des Séquences</h3>
+          <div class="toolbar compact" style="margin-bottom: 0.75rem;">
+            <label class="file-button" style="display: inline-grid; width: 100%; text-align: center; font-size: 0.82rem; padding: 0.45rem;">
+              📂 Générer depuis dossier cours
+              <input id="folderImport" type="file" webkitdirectory directory multiple hidden />
+            </label>
+          </div>
           <label>
             Séquence
             <select id="sequenceManagerSelect"></select>
@@ -137,24 +152,26 @@
             <input id="sequenceManagerColor" type="color" value="#2563eb" />
           </label>
           <div class="toolbar compact">
-            <button id="sequenceCreate" type="button">Créer + affecter</button>
-            <button id="sequenceUpdate" type="button">Enregistrer + affecter</button>
+            <button id="sequenceCreate" type="button">Créer</button>
+            <button id="sequenceUpdate" type="button">Enregistrer</button>
             <button id="sequenceDelete" type="button" class="danger">Supprimer</button>
-            <button id="sequenceSelectSquares" type="button">Sélectionner</button>
           </div>
+          <div id="sequenceManagerFiles" class="planned-list" style="margin-top: 0.5rem; gap: 0.25rem;"></div>
         </div>
 
         <div class="import-box" data-control-scope="summary">
-          <h3 class="control-subtitle">Affectation rapide</h3>
+          <h3 class="control-subtitle">🎯 Affectation</h3>
+          <div id="selectedCount" class="planned-list" style="margin-bottom: 0.5rem;">Aucun carré sélectionné.</div>
           <label>
-            Affecter la sélection
+            Séquence à affecter
             <select id="sequenceAssignSelect"></select>
           </label>
-          <label>
-            Nouvelle séquence
-            <input id="sequenceAssignName" type="text" placeholder="Nom de séquence..." />
-          </label>
-          <label>
+          <div class="toolbar compact">
+            <button id="assignSelectedSequence" type="button">Affecter</button>
+            <button id="clearSelectedSequence" type="button">Retirer</button>
+            <button id="sequenceSelectSquares" type="button" title="Sélectionne toutes les séances de cette séquence">Sélectionner séances</button>
+          </div>
+          <label style="margin-top: 1rem;">
             Matière des cours sélectionnés
             <select id="domainAssignSelect">
               <option value="">Choisir une attribution</option>
@@ -166,11 +183,8 @@
             </select>
           </label>
           <div class="toolbar compact">
-            <button id="assignSelectedSequence" type="button">Affecter</button>
-            <button id="clearSelectedSequence" type="button">Retirer</button>
             <button id="assignSelectedDomain" type="button">Réattribuer</button>
           </div>
-          <div id="selectedCount" class="planned-list">Aucun carré sélectionné.</div>
         </div>
 
         <div class="stats" id="stats"></div>
