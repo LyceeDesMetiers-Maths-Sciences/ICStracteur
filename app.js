@@ -5,6 +5,7 @@ const state = {
   plannedSequences: loadPlannedSequences(),
   sequenceMeta: loadSequenceMeta(),
   annotations: loadAnnotations(),
+  ignoredClasses: JSON.parse(localStorage.getItem("icstracteur.ignoredClasses") || "[]"),
   filters: {
     className: localStorage.getItem("icstracteur.classFilter") || "",
     group: localStorage.getItem("icstracteur.groupFilter") || "",
@@ -107,6 +108,10 @@ const els = {
   closeManual: document.getElementById("closeManual"),
   toggleTheme: document.getElementById("toggleTheme"),
   folderImport: document.getElementById("folderImport"),
+  btnManageClasses: document.getElementById("btnManageClasses"),
+  classManagerDialog: document.getElementById("classManagerDialog"),
+  classManagerList: document.getElementById("classManagerList"),
+  closeClassManager: document.getElementById("closeClassManager"),
 };
 
 const detailFields = {
@@ -388,11 +393,16 @@ function extractClassFromText(text) {
   const classMatch = norm.match(/(?:^|\n)Classes?\s*:\s*([^\n<]+)/i);
   if (classMatch) return cleanClassName(classMatch[1]);
   
-  const partieMatch = norm.match(/(?:^|\n)Partie de classe\s*:\s*(?:<|&lt;)([^>]+)(?:>|&gt;)/i);
+  const partieMatch = norm.match(/(?:^|\n)Partie de classe\s*:\s*(?:<|&lt;?\\?;?)([^>]+)(?:>|&gt;?\\?;?)/i);
   if (partieMatch) return cleanClassName(partieMatch[1]);
 
   const groupeMatch = norm.match(/(?:^|\n)Groupes?\s*:\s*\[([^\]]+)\]/i);
-  if (groupeMatch) return cleanClassName(groupeMatch[1].split(' ')[0]);
+  if (groupeMatch) {
+    const rawGroup = groupeMatch[1];
+    // S'il y a un underscore (ex: 1ERE G2_GR1), on prend la partie avant
+    if (rawGroup.includes("_")) return cleanClassName(rawGroup.split("_")[0]);
+    return cleanClassName(rawGroup.split(' ')[0]);
+  }
 
   return "";
 }
@@ -400,7 +410,8 @@ function extractClassFromText(text) {
 function cleanClassName(value) {
   if (!value) return "";
   let cleaned = String(value).trim();
-  cleaned = cleaned.replace(/\s+G[12AB]$/gi, "");
+  // Retrait de l'anti-slash laissé par l'échappement Pronote \,
+  cleaned = cleaned.replace(/\\/g, "");
   cleaned = cleaned.replace(/\s+/g, " ");
   return cleaned.split(",")[0].trim().toUpperCase();
 }
@@ -573,10 +584,11 @@ function detectType(summary, description, location) {
   // Un événement d'agenda (réunion, commission, conseil, convocation, oral...)
   // ne doit pas devenir un cours simplement parce qu'il mentionne une matière
   // (cf. point 4.1). On l'écarte explicitement avant la règle de repli.
-  const agendaMarker = /\b(reunion|réunion|commission|conseil|convocation|oral|inscription|jury|bilan|brevet|examen|epreuve|épreuve|formation|stage|sortie)\b/i;
+  const agendaMarker = /(?:^|\W)(reunion|réunion|commission|conseil|convocation|oral|inscription|jury|bilan|brevet|examen|epreuve|épreuve|formation|stage|sortie)(?:\W|$)/i;
   if (agendaMarker.test(text)) return "autre";
-  if (text.includes("sciences") || text.includes("physique") || text.includes("chimie") || text.includes("math")) return "cours";
-  return "autre";
+  
+  // Par défaut, si c'est importé de Pronote et pas dans l'agenda exceptionnel, c'est un cours.
+  return "cours";
 }
 
 function detectDomain(summary, description, location, type) {
@@ -628,10 +640,17 @@ function mergedEvent(event) {
   const dtstart = a.manualDate && a.manualStart ? buildDate(a.manualDate, a.manualStart) : event.dtstart;
   const dtend = a.manualDate && a.manualEnd ? buildDate(a.manualDate, a.manualEnd) : event.dtend;
   const planned = a.plannedSequence || event.plannedSequence || findPlannedSequenceForEvent({ ...event, dtstart, dtend });
-  const rawTitle = a.title || event.summary || "";
-  const rawClass = a.className || event.className || "";
+  const rawTitle = a.title || event.title || event.summary || "";
   const rawGroup = a.group || event.group || "";
-  const className = cleanClassName(rawClass) || extractClassFromText(`${rawTitle}\n${event.description || ""}`);
+  
+  let className = "";
+  if (a.className !== undefined) {
+    className = cleanClassName(a.className);
+  } else {
+    className = cleanClassName(event.className) || extractClassFromText(`${rawTitle}\n${event.description || ""}`);
+  }
+
+  const rawSequence = a.sequence || event.sequence || "";
   const group = normalizeGroupName(rawGroup || className, className);
   const type = a.type || event.type || "autre";
   const domain = Object.hasOwn(a, "domain")
@@ -664,6 +683,16 @@ function allEvents() {
   const events = [...state.imported, ...state.manual].map(mergedEvent);
   return deduplicateEvents(events)
     .sort((a, b) => (a.dtstart?.getTime?.() || 0) - (b.dtstart?.getTime?.() || 0));
+}
+
+function applyFilters(events) {
+  const ignored = new Set(state.ignoredClasses);
+  let filtered = events.filter(e => !e.className || !ignored.has(e.className));
+
+  const tFilter = state.filters.type;
+  if (tFilter) filtered = filtered.filter(e => e.type === tFilter);
+  
+  return filtered;
 }
 
 function deduplicateEvents(events) {
@@ -762,8 +791,9 @@ function updateFilters() {
 
 function activeCanonicalClasses(events) {
   const active = new Set();
+  const ignored = new Set(state.ignoredClasses);
   for (const event of events) {
-    if (event.className) active.add(event.className);
+    if (event.className && !ignored.has(event.className)) active.add(event.className);
   }
   return Array.from(active).sort();
 }
@@ -833,7 +863,7 @@ function eventBelongsToClass(event, className) {
 }
 
 function render() {
-  const sourceEvents = allEvents();
+  const sourceEvents = applyFilters(allEvents());
   const events = sourceEvents.filter(matchesFilter);
   const planningEvents = sourceEvents.filter(matchesPlanningFilter);
   pruneSelectedSummaryIds(planningEvents);
@@ -930,7 +960,7 @@ function renderSummary(events) {
     state.summaryEventOrder = [];
     els.summaryWrap.className = `summary-wrap summary-empty ${state.summaryOrientation}`;
     els.summaryWrap.innerHTML = '<div class="summary-notice">Choisis une classe pour afficher la planification annuelle.</div>';
-    els.summaryStats.textContent = "La planification est volontairement limitée à une classe ou un groupe.";
+    els.summaryStats.textContent = "La planification est limitée à une classe ou un groupe.";
     updateSequenceAssignmentControls([]);
     return;
   }
@@ -987,7 +1017,7 @@ function planningDomainStats(events) {
 }
 
 function renderMixedSummary(events, now) {
-  if (!events.length) return '<div class="summary-notice">Aucun cours maths/sciences/co-intervention visible pour ce filtre.</div>';
+  if (!events.length) return '<div class="summary-notice">Aucun cours visible pour ce filtre.</div>';
   return `
     <section class="summary-sheet">
       <div class="summary-sheet-head">
@@ -1001,7 +1031,7 @@ function renderMixedSummary(events, now) {
 }
 
 function renderSplitSummary(events, now) {
-  if (!events.length) return '<div class="summary-notice">Aucun cours maths/sciences/co-intervention visible pour ce filtre.</div>';
+  if (!events.length) return '<div class="summary-notice">Aucun cours visible pour ce filtre.</div>';
   const columns = SUMMARY_DOMAINS
     .map((domain) => ({ domain, events: events.filter((event) => event.domain === domain) }))
     .filter((column) => column.events.length);
@@ -1860,6 +1890,39 @@ function createManualEventFromForm() {
   openDetails(event.id);
 }
 
+function openClassManager() {
+  const allEventsList = allEvents();
+  const allClasses = new Set();
+  for (const event of allEventsList) {
+    if (event.className) allClasses.add(event.className);
+  }
+  const sortedClasses = Array.from(allClasses).sort();
+
+  els.classManagerList.innerHTML = sortedClasses.map(className => `
+    <div class="planned-item">
+      <span>${escapeHtml(className)}</span>
+      <button type="button" data-class="${escapeHtml(className)}">
+        ${state.ignoredClasses.includes(className) ? "Réactiver" : "Ignorer"}
+      </button>
+    </div>
+  `).join("");
+  els.classManagerList.querySelectorAll("button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const cls = btn.dataset.class;
+      if (state.ignoredClasses.includes(cls)) {
+        state.ignoredClasses = state.ignoredClasses.filter(c => c !== cls);
+      } else {
+        state.ignoredClasses.push(cls);
+      }
+      localStorage.setItem("icstracteur.ignoredClasses", JSON.stringify(state.ignoredClasses));
+      openClassManager();
+      updateFilters();
+      render();
+    });
+  });
+  els.classManagerDialog.showModal();
+}
+
 function buildDate(dateValue, timeValue) {
   if (!dateValue || !timeValue) return null;
   const [y, m, d] = dateValue.split("-").map(Number);
@@ -1946,6 +2009,7 @@ function buildBackupPayload() {
       end: seq.end ? seq.end.toISOString() : null,
     })),
     sequenceMeta: state.sequenceMeta,
+    ignoredClasses: state.ignoredClasses,
     settings: {
       classFilter: state.filters.className,
       groupFilter: state.filters.group,
@@ -1990,6 +2054,10 @@ function applyBackupPayload(payload) {
   if (payload.sequenceMeta && typeof payload.sequenceMeta === "object") {
     state.sequenceMeta = payload.sequenceMeta;
     saveSequenceMeta();
+  }
+  if (Array.isArray(payload.ignoredClasses)) {
+    state.ignoredClasses = payload.ignoredClasses;
+    localStorage.setItem("icstracteur.ignoredClasses", JSON.stringify(state.ignoredClasses));
   }
   const s = payload.settings || {};
   if (typeof s.classFilter === "string") state.filters.className = s.classFilter;
@@ -2155,6 +2223,9 @@ function updatePrintStyle() {
 }
 
 function bindEvents() {
+  els.btnManageClasses.addEventListener("click", openClassManager);
+  els.closeClassManager.addEventListener("click", () => els.classManagerDialog.close());
+
   els.icsFile.addEventListener("change", async () => {
     const file = els.icsFile.files?.[0];
     if (file) await importIcsFile(file);

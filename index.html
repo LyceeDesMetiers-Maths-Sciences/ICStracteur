@@ -94,6 +94,7 @@
               <option value="done">Fait</option>
             </select>
           </label>
+          <button type="button" id="btnManageClasses" style="margin-top: 0.5rem; width: 100%;">Gérer les classes détectées...</button>
         </div>
 
         <div class="import-box" data-control-scope="table grid summary">
@@ -297,6 +298,17 @@
         </form>
       </aside>
     </main>
+    <dialog id="classManagerDialog">
+      <form method="dialog">
+        <h2>Gérer les classes détectées</h2>
+        <p class="field-hint" style="margin-bottom: 1rem;">Décochez les classes "parasites" (créées par erreur lors de l'import Pronote). Leurs événements seront totalement masqués de l'application.</p>
+        <div id="classManagerList" style="max-height: 50vh; overflow-y: auto; border: 1px solid var(--line); border-radius: 6px; padding: 1rem; margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
+        </div>
+        <div class="toolbar compact">
+          <button type="button" id="closeClassManager">Fermer</button>
+        </div>
+      </form>
+    </dialog>
 
     <dialog id="manualDialog">
       <form id="manualForm" method="dialog">
