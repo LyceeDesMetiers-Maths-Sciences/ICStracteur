@@ -14,6 +14,11 @@ Visualisez en un coup d'œil votre progression, les évaluations et vos séquenc
 
 ![Aperçu de la vue Planification](./Screenshot01.png)
 
+### Constructeur de Séquences et Planification
+Gérez vos séquences pédagogiques, liez vos documents locaux et planifiez vos activités.
+
+![Aperçu du constructeur de séquences](./UI/Screen%20Séquence%20Constructeur.png)
+
 ### Export PDF et Impression
 Générez facilement des documents de progression pour vos inspections ou votre organisation personnelle.
 

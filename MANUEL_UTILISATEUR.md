@@ -44,6 +44,9 @@ Le menu `Classe / groupe` dépend de la classe choisie. Il permet d'afficher la 
 
 Une classe doit être choisie pour afficher la planification annuelle.
 
+> [!NOTE]
+> Dans la vue **Séquences**, un sélecteur de classe supplémentaire est disponible directement dans l'en-tête du planning d'affectation pour changer de classe à la volée. Les filtres restent synchronisés de manière bidirectionnelle dans toute l'application.
+
 ## 5. Les trois vues
 
 ### Vue Liste
@@ -73,8 +76,15 @@ Dans la planification :
 
 ## 7. Catalogue des Séquences (Création)
 
-L'encart **Catalogue des Séquences** permet de définir vos séquences :
+![Aperçu du constructeur de séquences](./UI/Screen%20Séquence%20Constructeur.png)
 
+L'interface de la vue **Séquences** est organisée en deux colonnes principales :
+- **À gauche** : le planning d'affectation des séances et le déroulé de la séquence sélectionnée (Timeline et activités).
+- **À droite** : les outils de configuration et métadonnées de la séquence (Catalogue, compétences BO, documents associés).
+
+Chaque panneau de cette vue possède un bouton triangulaire de repliement (`▼` / `▲`) permettant de replier verticalement le panneau afin de libérer de l'espace sur l'écran.
+
+L'encart **Catalogue des Séquences** (à droite) permet de définir vos séquences :
 - **Générer depuis dossier cours** : L'application scanne l'arborescence de vos cours sur votre disque et génère le catalogue automatiquement.
 - **Séquence** : séquence existante à modifier ;
 - **Nom**, **Matière**, **Couleur** ;
@@ -82,15 +92,12 @@ L'encart **Catalogue des Séquences** permet de définir vos séquences :
 
 ## 8. Affectation (Planification)
 
-L'encart **Affectation** sert à lier vos séances aux séquences du catalogue.
+L'encart **Affectation des séances (Planning)** (à gauche) sert à lier vos séances réelles aux séquences du catalogue.
 
 Pour affecter une séquence :
-1. Sélectionnez les carrés dans le calendrier.
-2. Choisissez la séquence voulue dans le menu déroulant `Séquence à affecter`.
-3. Cliquez sur `Affecter`.
-
-Le bouton `Retirer` remet les cours sélectionnés en `Sans séquence`.
-Le bouton `Sélectionner séances` met en surbrillance toutes les séances actuellement rattachées à la séquence choisie.
+1. Sélectionnez la séquence active à droite ou cliquez dessus dans la légende.
+2. Cliquez sur les carrés de séances dans le calendrier de gauche pour leur affecter cette séquence (ou `Maj` + clic pour une plage).
+3. Cliquer sur une séance déjà affectée à la séquence active lui retire l'affectation (retour en `Sans séquence`).
 
 ## 9. Corriger la matière d'un cours
 
@@ -132,3 +139,10 @@ Le navigateur conserve localement :
 - les événements manuels ;
 - les séquences (catalogue) ;
 - les réglages d'affichage et options d'impression.
+
+## 13. Gestion des classes détectées (Masquage)
+
+Le bouton **Gérer les classes détectées...** dans la barre latérale permet d'ouvrir un gestionnaire de classes :
+- Le bouton affiche dynamiquement le nombre de classes masquées (ex : *Gérer les classes détectées (4 masquées)...*).
+- Décocher une classe la masque de l'application : ses cours n'apparaissent plus dans la liste générale (« Toutes les classes »).
+- Néanmoins, si vous sélectionnez explicitement une classe masquée dans l'un des sélecteurs de classe, l'application affichera temporairement ses cours pour vous éviter un écran blanc involontaire.

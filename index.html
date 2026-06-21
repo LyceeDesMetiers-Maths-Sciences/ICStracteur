@@ -5,18 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ICStracteur 26-27</title>
     <link rel="stylesheet" href="style.css" />
+    <script defer src="curriculum.js"></script>
     <script defer src="app.js"></script>
   </head>
   <body>
     <header class="topbar">
       <div>
-        <p class="eyebrow">ASSP 26-27</p>
         <h1>ICStracteur</h1>
       </div>
       <div class="toolbar">
         <button id="viewTable" type="button">Liste</button>
         <button id="viewGrid" type="button">Grille</button>
         <button id="viewSummary" type="button">Planification</button>
+        <button id="viewSequences" type="button">Séquences</button>
+        <button id="viewProjection" type="button">📽️ Mode Élèves</button>
         <label class="file-button">
           Importer un ICS
           <input id="icsFile" type="file" accept=".ics,text/calendar" hidden />
@@ -63,11 +65,11 @@
               <option value="split">Éclaté par matière</option>
             </select>
           </label>
-          <label data-control-scope="table grid summary">
+          <label data-control-scope="table grid summary projection">
             Classe
             <select id="classFilter"></select>
           </label>
-          <label data-control-scope="table grid summary">
+          <label data-control-scope="table grid summary projection">
             Classe / groupe
             <select id="groupFilter"></select>
           </label>
@@ -255,6 +257,277 @@
         <div id="summaryWrap" class="summary-wrap"></div>
       </section>
 
+      <section class="panel sequences-panel hidden">
+        <!-- Rangée supérieure (Top split) : Planning à gauche, Liste des séquences à droite -->
+        <!-- Colonne gauche : Planning en haut, Timeline en bas -->
+        <div class="seq-left-col">
+          <!-- Colonne gauche-haut : Planification par matière interactive -->
+          <div id="panelPlanning" class="seq-planning-col">
+            <div class="panel-header-bar">
+              <span class="panel-header-title">
+                <span class="panel-icon">🗓️</span>
+                <span class="panel-title-text">Affectation des séances (Planning)</span>
+              </span>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <div class="panel-header-actions">
+                  <select id="planningClassFilter" style="font-size: 0.78rem; padding: 0.2rem 0.4rem; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer;"></select>
+                </div>
+                <button class="panel-collapse-btn" type="button" onclick="toggleSequencePanel('planning')">▼</button>
+              </div>
+            </div>
+            <div class="panel-content-wrap">
+              <p class="field-hint" style="margin-bottom: 0.5rem; font-size: 0.78rem;">Sélectionnez une séquence dans le bandeau à droite, puis cliquez sur les séances ci-dessous (Maj + Clic pour les plages).</p>
+              <div id="seqBuilderPlanningWrap" class="summary-wrap mode-split">
+                <!-- Planning éclaté par matière dynamique -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Colonne gauche-bas : Ligne de vie et métadonnées -->
+          <div id="panelTimeline" class="seq-timeline-col">
+            <div class="panel-header-bar">
+              <span class="panel-header-title">
+                <span class="panel-icon">📍</span>
+                <span class="panel-title-text">Déroulé et activités de la séquence</span>
+              </span>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <div class="panel-header-actions">
+                  <span id="seqBuilderHoursCalculated" style="font-weight: 700; background: var(--accent); color: white; padding: 0.15rem 0.5rem; border-radius: 12px; font-size: 0.8rem;">0 h</span>
+                </div>
+                <button class="panel-collapse-btn" type="button" onclick="toggleSequencePanel('timeline')">▼</button>
+              </div>
+            </div>
+            <div class="panel-content-wrap">
+              <div id="seqBuilderTimelineEmpty" class="projection-empty-msg" style="padding: 4rem 1rem;">
+                Veuillez sélectionner ou créer une séquence dans le bandeau supérieur pour commencer à l'organiser.
+              </div>
+              <div id="seqBuilderTimelineContent" class="seq-timeline-content hidden">
+                <!-- Liste verticale des séances rattachées -->
+                <div id="seqBuilderTimeline" class="vertical-timeline" style="display: flex; flex-direction: column; gap: 0.6rem; padding-right: 0.25rem;">
+                  <!-- Généré dynamiquement -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Colonne droite : Liste des séquences en haut, Éditeur en bas -->
+        <div class="seq-right-col">
+          <!-- Colonne droite-haut : Liste/Bandeau des Séquences -->
+          <div id="panelBanner" class="seq-banner-col">
+            <div class="panel-header-bar">
+              <span class="panel-header-title">
+                <span class="panel-icon">📚</span>
+                <span class="panel-title-text">Liste des Séquences</span>
+              </span>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <div class="panel-header-actions">
+                  <button id="btnCreateSequenceInline" type="button" class="primary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; height: auto; margin: 0;">+ Nouvelle</button>
+                </div>
+                <button class="panel-collapse-btn" type="button" onclick="toggleSequencePanel('banner')">▼</button>
+              </div>
+            </div>
+            <div class="panel-content-wrap" style="display: flex; flex-direction: column; height: 100%; min-height: 0;">
+              <div class="seq-table-container">
+                <table class="seq-list-table">
+                  <thead>
+                    <tr>
+                      <th>Séquence</th>
+                      <th style="width: 100px; text-align: right;">Durée</th>
+                    </tr>
+                  </thead>
+                  <tbody id="seqBuilderBanner">
+                    <!-- Rendu dynamique des séquences (lignes de tableau) -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Colonne droite-bas : Éditeur d'élément & Ressources & Légende -->
+          <div id="panelEditor" class="seq-editor-col">
+            <div class="panel-header-bar">
+              <span class="panel-header-title">
+                <span class="panel-icon">⚙️</span>
+                <span class="panel-title-text">Paramètres & Éditeur</span>
+              </span>
+              <button class="panel-collapse-btn" type="button" onclick="toggleSequencePanel('editor')">▼</button>
+            </div>
+            <div class="panel-content-wrap" style="display: flex; flex-direction: column; gap: 0.75rem; width: 100%; height: 100%; min-height: 0;">
+              <div id="seqBuilderSequenceConfig" class="hidden" style="display: flex; flex-direction: column; gap: 0.75rem; width: 100%;">
+                <!-- Métadonnées éditables de la séquence active -->
+                <div class="seq-details-metadata" style="border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem; background: var(--bg); margin-bottom: 0.5rem;">
+                  <h4 style="margin: 0 0 0.75rem 0; font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; gap: 0.25rem;">⚙️ Paramètres et Objectifs</h4>
+                  <div class="seq-metadata-form" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    <label>
+                      Nom de la séquence
+                      <input id="seqBuilderTitle" type="text" placeholder="Nom de la séquence..." style="padding: 0.4rem; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--text);" />
+                    </label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                      <label>
+                        Matière
+                        <select id="seqBuilderDomain" style="padding: 0.4rem; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--text);">
+                          <option value="maths">Maths</option>
+                          <option value="sciences">Sciences</option>
+                          <option value="cointervention">Co-intervention</option>
+                          <option value="autre">Non classé</option>
+                        </select>
+                      </label>
+                      <label>
+                        Couleur
+                        <input id="seqBuilderColor" type="color" value="#3b82f6" style="width: 100%; height: 34px; padding: 0.2rem; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); cursor: pointer;" />
+                      </label>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                      <label>
+                        Niveau BO cible
+                        <select id="seqBuilderLevel" style="padding: 0.4rem; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--text);">
+                          <option value="CAP">CAP</option>
+                          <option value="2nde">Seconde</option>
+                          <option value="1ere">Première</option>
+                          <option value="Terminale">Terminale</option>
+                        </select>
+                      </label>
+                      <label>
+                        Volume horaire (heures)
+                        <input id="seqBuilderHours" type="number" min="0" max="100" value="0" style="padding: 0.4rem; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--text);" />
+                      </label>
+                    </div>
+                    <label>
+                      Notes / Objectifs pédagogiques
+                      <textarea id="seqBuilderNote" rows="2" placeholder="Saisissez les objectifs de la séquence..." style="padding: 0.4rem; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--text); resize: vertical;"></textarea>
+                    </label>
+                    <div style="display: flex; gap: 0.5rem;">
+                      <button id="seqBuilderSave" type="button" class="primary" style="flex: 2; padding: 0.5rem; font-size: 0.85rem;">Enregistrer</button>
+                      <button id="seqBuilderDelete" type="button" class="danger" style="flex: 1; padding: 0.5rem; font-size: 0.85rem; color: var(--danger);">Supprimer</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Référentiel BO (collapsible) -->
+                <details class="seq-bo-details" style="border-top: 1px solid var(--line); padding-top: 0.5rem;">
+                  <summary style="cursor: pointer; font-weight: 600; font-size: 0.9rem; padding: 0.25rem 0;">🎯 Référentiel BO & Couverture</summary>
+                  <div class="bo-curriculum-col" style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.5rem;">
+                    <label>
+                      Module de cours
+                      <select id="boModuleSelect" style="width: 100%; padding: 0.4rem; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text);"></select>
+                    </label>
+                    <div class="bo-coverage-widget" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.25rem 0;">
+                      <div class="coverage-bar-container" style="flex: 1; height: 8px; background: var(--line); border-radius: 4px; overflow: hidden;">
+                        <div id="boModuleCoverageBar" class="coverage-bar" style="width: 0%; height: 100%; background: #10b981; transition: width 0.3s ease;"></div>
+                      </div>
+                      <span id="boModuleCoverageText" class="coverage-text" style="font-size: 0.8rem; font-weight: 600; min-width: 110px; text-align: right;">0% couvert</span>
+                    </div>
+                    <div class="bo-lists-container" style="display: grid; grid-template-columns: 1fr; gap: 0.75rem;">
+                      <div class="bo-list-box" style="border: 1px solid var(--line); border-radius: 6px; padding: 0.5rem; background: var(--bg); max-height: 140px; overflow-y: auto;">
+                        <h4 style="margin: 0; font-size: 0.8rem; border-bottom: 1px solid var(--line); padding-bottom: 0.25rem; font-weight: 600;">Capacités</h4>
+                        <div id="boCapacitiesList" class="bo-checkbox-list" style="display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.78rem; margin-top: 0.4rem;"></div>
+                      </div>
+                      <div class="bo-list-box" style="border: 1px solid var(--line); border-radius: 6px; padding: 0.5rem; background: var(--bg); max-height: 140px; overflow-y: auto;">
+                        <h4 style="margin: 0; font-size: 0.8rem; border-bottom: 1px solid var(--line); padding-bottom: 0.25rem; font-weight: 600;">Connaissances</h4>
+                        <div id="boKnowledgesList" class="bo-checkbox-list" style="display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.78rem; margin-top: 0.4rem;"></div>
+                      </div>
+                    </div>
+                  </div>
+                </details>
+
+                <!-- Documents indexés (collapsible) -->
+                <details class="seq-docs-details" style="border-top: 1px solid var(--line); padding-top: 0.5rem; margin-bottom: 0.5rem;">
+                  <summary style="cursor: pointer; font-weight: 600; font-size: 0.9rem; padding: 0.25rem 0;">📂 Index des Documents locaux</summary>
+                  <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 0.5rem; margin-bottom: 0.25rem;">
+                    <span class="field-hint">Fichiers trouvés dans vos dossiers</span>
+                    <label class="file-button" style="font-size: 0.7rem; padding: 0.25rem 0.5rem; margin: 0; cursor: pointer; border-radius: 4px; border: 1px solid var(--line); background: var(--panel); color: var(--text);">
+                      ⚡ Scanner dossier
+                      <input id="seqBuilderFolderImport" type="file" webkitdirectory directory multiple hidden />
+                    </label>
+                  </div>
+                  <div class="doc-assoc-box" style="border: 1px solid var(--line); border-radius: 6px; padding: 0.5rem; background: var(--bg); max-height: 120px; overflow-y: auto;">
+                    <div id="seqBuilderDocsList" class="docs-checkbox-list" style="display: flex; flex-direction: column; gap: 0.4rem;"></div>
+                  </div>
+                </details>
+              </div>
+
+              <div id="seqBuilderEditorContent" style="width: 100%;">
+                <!-- Rendu dynamiquement par JS -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel projection-panel hidden">
+        <div class="projection-head">
+          <h2>📽️ Tableau de bord de la classe</h2>
+          <div id="projectionClassTitle" class="projection-class-title">Sélectionnez une classe</div>
+        </div>
+        <div class="projection-grid">
+          
+          <!-- Card 1: Progression de l'année -->
+          <div class="projection-card progress-card">
+            <h3>🗓️ Progression annuelle</h3>
+            <div class="progress-container">
+              <div class="progress-ring-wrap">
+                <svg class="progress-ring" width="120" height="120">
+                  <circle class="progress-ring__circle-bg" stroke="var(--line)" stroke-width="8" fill="transparent" r="50" cx="60" cy="60"/>
+                  <circle id="projectionYearCircle" class="progress-ring__circle" stroke="var(--accent)" stroke-width="8" fill="transparent" r="50" cx="60" cy="60" stroke-dasharray="314.16" stroke-dashoffset="314.16"/>
+                </svg>
+                <div id="projectionYearPercent" class="progress-percent">0%</div>
+              </div>
+              <div class="progress-stats">
+                <div class="stat-item">
+                  <span class="stat-val" id="projectionYearDone">0</span>
+                  <span class="stat-lbl">Séances faites</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-val" id="projectionYearRemaining">0</span>
+                  <span class="stat-lbl">Séances restantes</span>
+                </div>
+              </div>
+            </div>
+            <div class="time-budget-info" id="projectionTimeBudget">
+              Temps de cours restant : <strong>0 h</strong> (sur un total de 0 h)
+            </div>
+          </div>
+
+          <!-- Card 2: Séquence en cours -->
+          <div class="projection-card sequence-card">
+            <h3>📚 Séquence en cours</h3>
+            <div id="projectionSeqEmpty" class="projection-empty-msg">Aucune séquence active en ce moment.</div>
+            <div id="projectionSeqContent" class="projection-seq-content hidden">
+              <h4 id="projectionSeqTitle">Séquence 1</h4>
+              <div class="seq-domain-badge" id="projectionSeqDomain">Matière</div>
+              
+              <div class="seq-progress-bar-wrap">
+                <div class="seq-progress-bar-fill" id="projectionSeqBar" style="width: 0%;"></div>
+              </div>
+              <div class="seq-progress-text" id="projectionSeqProgressText">Séance 0 / 0</div>
+              
+              <div class="seq-objectives">
+                <strong>Objectifs :</strong>
+                <p id="projectionSeqObjectives">Description des objectifs...</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3: Échéances & Compte à rebours -->
+          <div class="projection-card milestones-card">
+            <h3>🎯 Prochaines échéances</h3>
+            <div id="projectionMilestonesList" class="milestones-list">
+              <div class="projection-empty-msg">Aucun événement à venir.</div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Grille de Planification Éclatée pour les élèves -->
+        <div class="projection-card split-planning-card" style="margin-top: 1.5rem; width: 100%;">
+          <h3>🗓️ Emplacement des séances (Planification annuelle)</h3>
+          <div id="projectionSplitWrap" class="summary-wrap mode-split">
+            <!-- Rendu dynamique de la planification éclatée par matière -->
+          </div>
+        </div>
+      </section>
+
       <aside class="panel details" id="details">
         <h2>Détails</h2>
         <form id="detailForm">
@@ -340,6 +613,46 @@
         <div class="toolbar compact">
           <button type="submit">Créer</button>
           <button type="button" id="closeManual">Annuler</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="activityDialog">
+      <form id="activityForm" method="dialog">
+        <h2 id="activityDialogTitle" style="margin-top: 0;">Ajouter une activité</h2>
+        <input type="hidden" id="activityEventId" />
+        <input type="hidden" id="activityIndex" />
+        <div class="control-grid" style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <label>
+            Type d'activité
+            <select id="activityType" required style="padding: 0.5rem; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--text);">
+              <option value="cours">📘 Cours</option>
+              <option value="exercice">🍊 Exercice</option>
+              <option value="tp">🟢 TP / Labo</option>
+              <option value="eval-courte">🟡 Quiz / Éval courte</option>
+              <option value="eval-longue">🔴 Devoir / Éval longue</option>
+            </select>
+          </label>
+          <label>
+            Titre de l'activité
+            <input id="activityTitle" type="text" placeholder="ex: Introduction au cours..." required style="padding: 0.5rem; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--text);" />
+          </label>
+          <label>
+            Document associé (facultatif)
+            <select id="activityDoc" style="padding: 0.5rem; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--text);">
+              <option value="">Aucun document</option>
+              <!-- Rempli dynamiquement avec les fichiers scannés -->
+            </select>
+          </label>
+          <label>
+            Ou Lien URL externe (facultatif)
+            <input id="activityUrl" type="url" placeholder="https://..." style="padding: 0.5rem; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--text);" />
+          </label>
+        </div>
+        <div class="toolbar compact" style="margin-top: 1.25rem; display: flex; gap: 0.5rem; justify-content: flex-end;">
+          <button type="submit" class="primary" style="padding: 0.5rem 1rem;">Valider</button>
+          <button type="button" id="btnDeleteActivity" class="danger" style="padding: 0.5rem 1rem; color: var(--danger);">Supprimer</button>
+          <button type="button" id="closeActivityDialog" style="padding: 0.5rem 1rem;">Annuler</button>
         </div>
       </form>
     </dialog>
